@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import '../models/led_theme.dart';
 import '../models/device.dart';
+import '../services/storage_service.dart';
 
 class ESP32BLEService {
   // Service and characteristic UUIDs
@@ -16,6 +17,7 @@ class ESP32BLEService {
   final Map<String, Map<String, BluetoothCharacteristic>>
   _deviceCharacteristics = {};
   bool _isScanning = false;
+  bool _autoConnectEnabled = true;
 
   // Stream controllers
   final StreamController<String> _statusController =
@@ -32,6 +34,7 @@ class ESP32BLEService {
   // Getters
   bool get isConnected => _connectedDevices.isNotEmpty;
   bool get isScanning => _isScanning;
+  bool get autoConnectEnabled => _autoConnectEnabled;
   int get connectedDeviceCount => _connectedDevices.length;
   List<BluetoothDevice> get connectedDevices =>
       _connectedDevices.values.toList();
@@ -43,6 +46,106 @@ class ESP32BLEService {
   Stream<Device> get deviceConnectedStream => _deviceConnectedController.stream;
   Stream<Device> get deviceDisconnectedStream =>
       _deviceDisconnectedController.stream;
+
+  // Set auto-connect preference
+  void setAutoConnect(bool enabled) {
+    _autoConnectEnabled = enabled;
+  }
+
+  // Get previously bonded devices
+  Future<List<BluetoothDevice>> getBondedDevices() async {
+    try {
+      return await FlutterBluePlus.bondedDevices;
+    } catch (e) {
+      print("Error getting bonded devices: $e");
+      return [];
+    }
+  }
+
+  // Auto-reconnect to previously connected devices
+  Future<void> autoReconnect() async {
+    if (!_autoConnectEnabled) return;
+
+    try {
+      _statusController.add("Auto-reconnecting to known devices...");
+
+      // Get saved devices from storage
+      final savedDevices = await StorageService.instance.getSavedDevices();
+      final bondedDevices = await getBondedDevices();
+
+      for (final savedDevice in savedDevices) {
+        if (_connectedDevices.length >= 4) break;
+
+        if (!_connectedDevices.containsKey(savedDevice.id)) {
+          // Find the corresponding Bluetooth device
+          BluetoothDevice? bluetoothDevice;
+          try {
+            bluetoothDevice = bondedDevices.firstWhere(
+              (btDevice) => btDevice.remoteId.str == savedDevice.id,
+            );
+          } catch (e) {
+            // Device not found in bonded devices
+            continue;
+          }
+
+          if (bluetoothDevice != null) {
+            try {
+              final isConnectable = await _isDeviceConnectable(bluetoothDevice);
+              if (isConnectable) {
+                await connectToDevice(bluetoothDevice);
+                // Small delay between connections
+                await Future.delayed(const Duration(milliseconds: 500));
+              }
+            } catch (e) {
+              print("Auto-reconnect failed for ${savedDevice.name}: $e");
+            }
+          }
+        }
+      }
+
+      if (_connectedDevices.isEmpty) {
+        _statusController.add("No known devices found for auto-reconnect");
+      } else {
+        _statusController.add(
+          "Auto-reconnect completed: ${_connectedDevices.length} device(s) connected",
+        );
+      }
+    } catch (e) {
+      _statusController.add("Auto-reconnect error: $e");
+    }
+  }
+
+  // Check if device is connectable (has our service)
+  Future<bool> _isDeviceConnectable(BluetoothDevice device) async {
+    try {
+      // Try a quick connection test
+      await device.connect(timeout: const Duration(seconds: 3));
+      final services = await device.discoverServices();
+
+      final hasTargetService = services.any(
+        (service) =>
+            service.uuid.toString().toLowerCase() == serviceUUID.toLowerCase(),
+      );
+
+      if (!hasTargetService) {
+        await device.disconnect();
+        return false;
+      }
+
+      // Disconnect and let the main connect method handle the full connection
+      await device.disconnect();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Initialize and auto-reconnect
+  Future<void> initialize() async {
+    // Ensure storage service is initialized
+    await StorageService.instance.initialize();
+    await autoReconnect();
+  }
 
   // Start scanning for devices - renamed to match devices_page.dart usage
   Future<void> startScan() async {

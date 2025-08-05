@@ -6,14 +6,16 @@ import '../services/storage_service.dart';
 import '../widgets/device_list_item.dart';
 
 class DevicesPage extends StatefulWidget {
-  const DevicesPage({super.key});
+  final ESP32BLEService? bleService;
+
+  const DevicesPage({super.key, this.bleService});
 
   @override
   State<DevicesPage> createState() => _DevicesPageState();
 }
 
 class _DevicesPageState extends State<DevicesPage> {
-  final ESP32BLEService _bleService = ESP32BLEService();
+  late final ESP32BLEService _bleService;
   final StorageService _storageService = StorageService.instance;
 
   List<Device> _savedDevices = [];
@@ -24,6 +26,7 @@ class _DevicesPageState extends State<DevicesPage> {
   @override
   void initState() {
     super.initState();
+    _bleService = widget.bleService ?? ESP32BLEService();
     _initializeServices();
     _setupListeners();
     _loadSavedDevices();
@@ -31,7 +34,10 @@ class _DevicesPageState extends State<DevicesPage> {
 
   @override
   void dispose() {
-    _bleService.dispose();
+    // Only dispose if we created our own instance
+    if (widget.bleService == null) {
+      _bleService.dispose();
+    }
     super.dispose();
   }
 
@@ -84,14 +90,8 @@ class _DevicesPageState extends State<DevicesPage> {
   }
 
   Future<void> _autoReconnectDevices() async {
-    for (final device in _savedDevices) {
-      if (!_bleService.isDeviceConnected(device.id)) {
-        // Try to reconnect (this would need the actual BluetoothDevice object)
-        // For now, we'll just update the connection status
-        final updatedDevice = device.copyWith(isConnected: false);
-        await _storageService.updateDevice(updatedDevice);
-      }
-    }
+    // Auto-reconnect is handled by the BLE service initialize method
+    // This method can be used for additional UI-specific auto-reconnect logic if needed
   }
 
   Future<void> _startScan() async {
@@ -143,6 +143,10 @@ class _DevicesPageState extends State<DevicesPage> {
     await _bleService.disconnectDevice(device.id);
     await _storageService.removeDevice(device.id);
     await _loadSavedDevices();
+    
+    setState(() {
+      _statusMessage = 'Device ${device.name} removed from saved devices';
+    });
   }
 
   void _onDeviceConnected(Device device) async {
@@ -256,12 +260,54 @@ class _DevicesPageState extends State<DevicesPage> {
                     ),
                   ),
                   ..._savedDevices.map(
-                    (device) => DeviceListItem(
-                      device: device,
-                      isConnected: _bleService.isDeviceConnected(device.id),
-                      onConnect: () => _reconnectSavedDevice(device),
-                      onDisconnect: () => _disconnectDevice(device),
-                      onRemove: () => _removeDevice(device),
+                    (device) => ListTile(
+                      leading: Icon(
+                        _bleService.isDeviceConnected(device.id) 
+                          ? Icons.bluetooth_connected 
+                          : Icons.bluetooth,
+                        color: _bleService.isDeviceConnected(device.id) 
+                          ? Colors.green 
+                          : Colors.grey,
+                      ),
+                      title: Text(device.name),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(device.address),
+                          Text(
+                            'Last connected: ${_formatDateTime(device.lastConnected)}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_bleService.isDeviceConnected(device.id))
+                            ElevatedButton(
+                              onPressed: () => _disconnectDevice(device),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Disconnect'),
+                            )
+                          else
+                            ElevatedButton(
+                              onPressed: () => _reconnectSavedDevice(device),
+                              child: const Text('Connect'),
+                            ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: () => _showForgetDeviceDialog(device),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Forget'),
+                          ),
+                        ],
+                      ),
                       onTap: () => _navigateToControl(device),
                     ),
                   ),
@@ -321,5 +367,40 @@ class _DevicesPageState extends State<DevicesPage> {
     // Navigate to control page with selected device
     // This will be implemented when we create the control page
     Navigator.pushNamed(context, '/control', arguments: device);
+  }
+
+  void _showForgetDeviceDialog(Device device) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Forget Device'),
+          content: Text(
+            'Are you sure you want to forget "${device.name}"? This will remove all saved data for this device.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _removeDevice(device);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Forget'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 }

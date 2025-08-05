@@ -46,7 +46,7 @@ class _SplashScreenState extends State<SplashScreen> {
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [Color(0xFF2C3E50), Color(0xFF3498DB)],
+                      colors: [Color(0xFF006B56), Color(0xFF009973)],
                     ),
                   ),
                 );
@@ -58,7 +58,7 @@ class _SplashScreenState extends State<SplashScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 30),
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.5), // 50% opacity background
+                color: const Color(0xFF000000).withOpacity(0.5),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: const Column(
@@ -69,7 +69,7 @@ class _SplashScreenState extends State<SplashScreen> {
                     style: TextStyle(
                       fontSize: 48,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: Color(0xFFFFFFFF),
                       letterSpacing: 4,
                     ),
                   ),
@@ -79,7 +79,7 @@ class _SplashScreenState extends State<SplashScreen> {
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.w300,
-                      color: Colors.white,
+                      color: Color(0xFFFFFFFF),
                       letterSpacing: 2,
                     ),
                   ),
@@ -99,14 +99,14 @@ class _SplashScreenState extends State<SplashScreen> {
                   vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: const Color(0xFFFFFFFF).withOpacity(0.2),
                   borderRadius: BorderRadius.circular(25),
                 ),
                 child: const Text(
                   'zooft technologies',
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.white,
+                    color: Color(0xFFFFFFFF),
                     fontWeight: FontWeight.w400,
                     letterSpacing: 1,
                   ),

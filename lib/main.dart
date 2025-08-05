@@ -23,8 +23,14 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'HMZ Lighting',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF009973),
+          brightness: Brightness.light,
+        ),
         useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFFFFFFF),
+        cardColor: const Color(0xFFFFFFFF),
+        canvasColor: const Color(0xFFFFFFFF),
       ),
       home: const SplashScreen(nextScreen: MainNavigation()),
     );
