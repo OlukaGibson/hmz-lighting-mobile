@@ -5,14 +5,16 @@ import '../models/led_theme.dart';
 import '../services/ble_service.dart';
 
 class ControlPage extends StatefulWidget {
-  const ControlPage({super.key});
+  final ESP32BLEService? bleService;
+
+  const ControlPage({super.key, this.bleService});
 
   @override
   State<ControlPage> createState() => _ControlPageState();
 }
 
 class _ControlPageState extends State<ControlPage> {
-  final ESP32BLEService _bleService = ESP32BLEService();
+  late final ESP32BLEService _bleService;
 
   Device? _selectedDevice;
   final List<Device> _selectedDevices = [];
@@ -27,7 +29,17 @@ class _ControlPageState extends State<ControlPage> {
   @override
   void initState() {
     super.initState();
+    _bleService = widget.bleService ?? ESP32BLEService();
     _loadConnectedDevices();
+  }
+
+  @override
+  void dispose() {
+    // Only dispose if we created our own instance
+    if (widget.bleService == null) {
+      _bleService.dispose();
+    }
+    super.dispose();
   }
 
   void _loadConnectedDevices() {

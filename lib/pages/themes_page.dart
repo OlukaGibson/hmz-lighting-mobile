@@ -6,7 +6,9 @@ import '../widgets/theme_list_item.dart';
 import '../widgets/theme_create_dialog.dart';
 
 class ThemesPage extends StatefulWidget {
-  const ThemesPage({super.key});
+  final ESP32BLEService? bleService;
+
+  const ThemesPage({super.key, this.bleService});
 
   @override
   State<ThemesPage> createState() => _ThemesPageState();
@@ -14,7 +16,7 @@ class ThemesPage extends StatefulWidget {
 
 class _ThemesPageState extends State<ThemesPage> {
   final StorageService _storageService = StorageService.instance;
-  final ESP32BLEService _bleService = ESP32BLEService();
+  late final ESP32BLEService _bleService;
 
   List<LedTheme> _savedThemes = [];
   bool _isLoading = false;
@@ -22,7 +24,17 @@ class _ThemesPageState extends State<ThemesPage> {
   @override
   void initState() {
     super.initState();
+    _bleService = widget.bleService ?? ESP32BLEService();
     _loadSavedThemes();
+  }
+
+  @override
+  void dispose() {
+    // Only dispose if we created our own instance
+    if (widget.bleService == null) {
+      _bleService.dispose();
+    }
+    super.dispose();
   }
 
   Future<void> _loadSavedThemes() async {

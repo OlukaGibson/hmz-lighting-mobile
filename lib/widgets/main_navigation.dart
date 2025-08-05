@@ -24,8 +24,8 @@ class _MainNavigationState extends State<MainNavigation> {
     _bleService = ESP32BLEService();
     _pages = [
       DevicesPage(bleService: _bleService),
-      const ThemesPage(),
-      const ControlPage(),
+      ThemesPage(bleService: _bleService),
+      ControlPage(bleService: _bleService),
       const SettingsPage(),
     ];
     _initializeAndAutoConnect();
